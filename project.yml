@@ -1,0 +1,26 @@
+name: CS2iOS
+options:
+  bundleIdPrefix: com.cs2ios
+targets:
+  CS2iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.cs2ios.runtime
+        PRODUCT_NAME: CS2iOS
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        ARCHS: arm64
+        VALID_ARCHS: arm64
+        INFOPLIST_FILE: Sources/Info.plist
+    dependencies:
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: AVFAudio.framework
+      - sdk: GameController.framework
