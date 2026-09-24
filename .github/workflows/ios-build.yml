@@ -1,0 +1,33 @@
+name: iOS Step 3 Build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build ARM64 iOS app
+        run: |
+          set -o pipefail
+          xcodebuild -project CS2iOS.xcodeproj -scheme CS2iOS -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build | tee build.log
+      - name: Verify binary and app
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -path '*Release-iphoneos/CS2iOS.app' -type d | head -1)
+          test -n "$APP"
+          test -f "$APP/CS2iOS"
+          file "$APP/CS2iOS" | tee binary.txt
+          file "$APP/CS2iOS" | grep -q arm64
+          /usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations' "$APP/Info.plist"
+          mkdir -p artifact
+          cp -R "$APP" artifact/
+          cp build.log binary.txt artifact/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CS2iOS-Step3-unsigned
+          path: artifact
