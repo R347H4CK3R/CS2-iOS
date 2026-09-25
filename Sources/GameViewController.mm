@@ -2,6 +2,7 @@
 #import <MetalKit/MetalKit.h>
 #import <GameController/GameController.h>
 #import <ModelIO/ModelIO.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <MetalKit/MetalKit.h>
 
 @interface GameViewController () <MTKViewDelegate, UIDocumentPickerDelegate>
