@@ -1,9 +1,10 @@
 name: Build unsigned IPA
 
-on:
+'on':
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   build:
