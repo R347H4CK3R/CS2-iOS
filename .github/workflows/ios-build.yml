@@ -18,14 +18,16 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project CS2iOS.xcodeproj -scheme CS2iOS -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build | tee build.log
-      - name: Package unsigned IPA
+      - name: Package and validate unsigned IPA
         run: |
+          set -euo pipefail
           APP=$(find ~/Library/Developer/Xcode/DerivedData -path '*Release-iphoneos/CS2iOS.app' -type d | head -1)
           test -n "$APP"
           test -f "$APP/CS2iOS"
           file "$APP/CS2iOS" | tee binary.txt
           file "$APP/CS2iOS" | grep -q arm64
           /usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations' "$APP/Info.plist"
+          rm -rf Payload artifact
           mkdir -p Payload artifact
           cp -R "$APP" Payload/
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload artifact/CS2iOS-Step3-unsigned.ipa
@@ -33,18 +35,7 @@ jobs:
           unzip -l artifact/CS2iOS-Step3-unsigned.ipa | tee artifact/IPA-CONTENTS.txt
           unzip -p artifact/CS2iOS-Step3-unsigned.ipa Payload/CS2iOS.app/Info.plist > artifact/AppInfo.plist
           plutil -lint artifact/AppInfo.plist
-          test "$(unzip -Z1 artifact/CS2iOS-Step3-unsigned.ipa | grep -c '^Payload/CS2iOS.app/CS2iOS          cp build.log binary.txt artifact/
-      - uses: actions/upload-artifact@v4
-        with:
-          name: CS2iOS-Step3-IPA
-          path: artifact
-      - name: Publish direct IPA release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete step3-test --yes --cleanup-tag 2>/dev/null || true
-          gh release create step3-test artifact/CS2iOS-Step3-unsigned.ipa artifact/SHA256.txt --target "${GITHUB_SHA}" --title "CS2 iOS Step 3 Test" --notes "Unsigned ARM64 Step 3 device-test build. Sign with your sideloading method before installation."
-)" -eq 1
+          test "$(unzip -Z1 artifact/CS2iOS-Step3-unsigned.ipa | grep -c '^Payload/CS2iOS.app/CS2iOS$')" -eq 1
           shasum -a 256 artifact/CS2iOS-Step3-unsigned.ipa | tee artifact/SHA256.txt
           cp build.log binary.txt artifact/
       - uses: actions/upload-artifact@v4
@@ -56,4 +47,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete step3-test --yes --cleanup-tag 2>/dev/null || true
-          gh release create step3-test artifact/CS2iOS-Step3-unsigned.ipa artifact/SHA256.txt --target "${GITHUB_SHA}" --title "CS2 iOS Step 3 Test" --notes "Unsigned ARM64 Step 3 device-test build. Sign with your sideloading method before installation."
+          gh release create step3-test artifact/CS2iOS-Step3-unsigned.ipa artifact/SHA256.txt artifact/IPA-CONTENTS.txt --target "${GITHUB_SHA}" --title "CS2 iOS Step 3 Test" --notes "Unsigned ARM64 Step 3 device-test build. Sign with your sideloading method before installation."
