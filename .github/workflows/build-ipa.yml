@@ -1,0 +1,46 @@
+name: Build unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build arm64 iOS app
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project CS2iOS.xcodeproj \
+            -scheme CS2iOS \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
+            build
+      - name: Package unsigned IPA
+        run: |
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/CS2iOS.app"
+          test -d "$APP"
+          rm -rf Payload CS2iOS-LiveContainer-unsigned.ipa
+          mkdir Payload
+          cp -R "$APP" Payload/
+          /usr/bin/zip -qry CS2iOS-LiveContainer-unsigned.ipa Payload
+          /usr/bin/unzip -t CS2iOS-LiveContainer-unsigned.ipa
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: CS2iOS-LiveContainer-unsigned
+          path: CS2iOS-LiveContainer-unsigned.ipa
+          if-no-files-found: error
