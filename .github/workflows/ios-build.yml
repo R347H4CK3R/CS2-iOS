@@ -28,7 +28,23 @@ jobs:
           /usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations' "$APP/Info.plist"
           mkdir -p Payload artifact
           cp -R "$APP" Payload/
-          zip -qry artifact/CS2iOS-Step3-unsigned.ipa Payload
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload artifact/CS2iOS-Step3-unsigned.ipa
+          unzip -t artifact/CS2iOS-Step3-unsigned.ipa
+          unzip -l artifact/CS2iOS-Step3-unsigned.ipa | tee artifact/IPA-CONTENTS.txt
+          unzip -p artifact/CS2iOS-Step3-unsigned.ipa Payload/CS2iOS.app/Info.plist > artifact/AppInfo.plist
+          plutil -lint artifact/AppInfo.plist
+          test "$(unzip -Z1 artifact/CS2iOS-Step3-unsigned.ipa | grep -c '^Payload/CS2iOS.app/CS2iOS          cp build.log binary.txt artifact/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CS2iOS-Step3-IPA
+          path: artifact
+      - name: Publish direct IPA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete step3-test --yes --cleanup-tag 2>/dev/null || true
+          gh release create step3-test artifact/CS2iOS-Step3-unsigned.ipa artifact/SHA256.txt --target "${GITHUB_SHA}" --title "CS2 iOS Step 3 Test" --notes "Unsigned ARM64 Step 3 device-test build. Sign with your sideloading method before installation."
+)" -eq 1
           shasum -a 256 artifact/CS2iOS-Step3-unsigned.ipa | tee artifact/SHA256.txt
           cp build.log binary.txt artifact/
       - uses: actions/upload-artifact@v4
