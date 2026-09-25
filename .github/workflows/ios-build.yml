@@ -16,7 +16,7 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild -project CS2iOS.xcodeproj -scheme CS2iOS -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO ARCHS=arm64 build | tee build.log
-      - name: Verify binary and app
+      - name: Package unsigned IPA
         run: |
           APP=$(find ~/Library/Developer/Xcode/DerivedData -path '*Release-iphoneos/CS2iOS.app' -type d | head -1)
           test -n "$APP"
@@ -24,10 +24,12 @@ jobs:
           file "$APP/CS2iOS" | tee binary.txt
           file "$APP/CS2iOS" | grep -q arm64
           /usr/libexec/PlistBuddy -c 'Print :UISupportedInterfaceOrientations' "$APP/Info.plist"
-          mkdir -p artifact
-          cp -R "$APP" artifact/
+          mkdir -p Payload artifact
+          cp -R "$APP" Payload/
+          zip -qry artifact/CS2iOS-Step3-unsigned.ipa Payload
+          shasum -a 256 artifact/CS2iOS-Step3-unsigned.ipa | tee artifact/SHA256.txt
           cp build.log binary.txt artifact/
       - uses: actions/upload-artifact@v4
         with:
-          name: CS2iOS-Step3-unsigned
+          name: CS2iOS-Step3-IPA
           path: artifact
