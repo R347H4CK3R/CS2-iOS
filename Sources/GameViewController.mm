@@ -22,12 +22,16 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.queue=[self.device newCommandQueue];
-    self.audio=[AVAudioEngine new];
-    [self.audio prepare];
+
+    // Audio must never block application startup. LiveContainer can expose an
+    // AVAudioEngine with no usable I/O node during viewDidLoad, and calling
+    // prepare on that graph raises an AVFAudio assertion.
+    self.audio=nil;
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controller:) name:GCControllerDidConnectNotification object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controller:) name:GCControllerDidDisconnectNotification object:nil];
     [GCController startWirelessControllerDiscoveryWithCompletionHandler:^{ NSLog(@"[CS2iOS] controller discovery ready"); }];
-    NSLog(@"[CS2iOS] Metal=%@ audio=ready touch=ready controllers=%lu",self.device.name,(unsigned long)GCController.controllers.count);
+    NSLog(@"[CS2iOS] Metal=%@ audio=deferred touch=ready controllers=%lu",self.device.name,(unsigned long)GCController.controllers.count);
 }
 - (void)controller:(NSNotification *)n { NSLog(@"[CS2iOS] controller event count=%lu",(unsigned long)GCController.controllers.count); }
 - (void)touchesBegan:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event { NSLog(@"[CS2iOS] touch begin %lu",(unsigned long)touches.count); }
