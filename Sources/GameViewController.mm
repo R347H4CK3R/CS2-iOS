@@ -1,39 +1,20 @@
 #import "GameViewController.h"
 #import <MetalKit/MetalKit.h>
-#import <AVFAudio/AVFAudio.h>
 #import <GameController/GameController.h>
+#import <ModelIO/ModelIO.h>
+#import <MetalKit/MetalKit.h>
 
-typedef struct { vector_float2 p; vector_float4 c; } Vertex;
-
-@interface GameViewController () <MTKViewDelegate>
-@property(nonatomic,strong) id<MTLDevice> device;
-@property(nonatomic,strong) id<MTLCommandQueue> queue;
-@property(nonatomic,strong) id<MTLRenderPipelineState> pipeline;
-@property(nonatomic,strong) id<MTLBuffer> vertices;
-@property(nonatomic,strong) AVAudioEngine *audio;
+@interface GameViewController () <MTKViewDelegate, UIDocumentPickerDelegate>
+@property id<MTLDevice> device; @property id<MTLCommandQueue> queue; @property MTKMesh *mapMesh;
+@property NSDate *loadStart; @property UILabel *status;
 @end
-
 @implementation GameViewController
-- (void)loadView {
- self.device=MTLCreateSystemDefaultDevice(); NSAssert(self.device,@"Metal unavailable");
- MTKView *v=[[MTKView alloc]initWithFrame:CGRectZero device:self.device]; v.delegate=self; v.preferredFramesPerSecond=60;
- v.clearColor=MTLClearColorMake(.035,.045,.065,1); v.multipleTouchEnabled=YES; self.view=v;
-}
-- (void)viewDidLoad {
- [super viewDidLoad]; self.queue=[self.device newCommandQueue]; self.audio=[AVAudioEngine new]; [self.audio prepare];
- NSString *shader=@"#include <metal_stdlib>\nusing namespace metal; struct V{float2 p;float4 c;}; struct O{float4 p[[position]];float4 c;}; vertex O vs(uint i[[vertex_id]],constant V* v[[buffer(0)]]){O o;o.p=float4(v[i].p,0,1);o.c=v[i].c;return o;} fragment float4 fs(O i[[stage_in]]){return i.c;}";
- NSError *err=nil; id<MTLLibrary> lib=[self.device newLibraryWithSource:shader options:nil error:&err]; NSAssert(lib,@"shader %@",err);
- MTLRenderPipelineDescriptor *pd=[MTLRenderPipelineDescriptor new]; pd.vertexFunction=[lib newFunctionWithName:@"vs"]; pd.fragmentFunction=[lib newFunctionWithName:@"fs"]; pd.colorAttachments[0].pixelFormat=((MTKView*)self.view).colorPixelFormat;
- self.pipeline=[self.device newRenderPipelineStateWithDescriptor:pd error:&err]; NSAssert(self.pipeline,@"pipeline %@",err);
- const Vertex verts[]={{{-.9f,-.75f},{.25f,.30f,.34f,1}},{{.9f,-.75f},{.25f,.30f,.34f,1}},{{.75f,.6f},{.55f,.52f,.43f,1}},{{-.75f,.6f},{.55f,.52f,.43f,1}},{{-.9f,-.75f},{.25f,.30f,.34f,1}},{{.75f,.6f},{.55f,.52f,.43f,1}}};
- self.vertices=[self.device newBufferWithBytes:verts length:sizeof(verts) options:MTLResourceStorageModeShared];
- [[NSNotificationCenter defaultCenter]addObserver:self selector:@selector(controller:) name:GCControllerDidConnectNotification object:nil];
- [GCController startWirelessControllerDiscoveryWithCompletionHandler:^{}];
- NSLog(@"[CS2iOS][Step4] renderer ready map=cs_office proxy geometry vertices=6 Metal=%@",self.device.name);
-}
-- (void)controller:(NSNotification*)n { NSLog(@"[CS2iOS] controller count=%lu",(unsigned long)GCController.controllers.count); }
-- (void)touchesBegan:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { NSLog(@"[CS2iOS] touch=%lu",(unsigned long)t.count); }
-- (void)mtkView:(MTKView*)v drawableSizeWillChange:(CGSize)s { NSLog(@"[CS2iOS] drawable %.0fx%.0f",s.width,s.height); }
-- (void)drawInMTKView:(MTKView*)v { MTLRenderPassDescriptor *p=v.currentRenderPassDescriptor; id<CAMetalDrawable>d=v.currentDrawable;if(!p||!d)return;id<MTLCommandBuffer>cb=[self.queue commandBuffer];id<MTLRenderCommandEncoder>e=[cb renderCommandEncoderWithDescriptor:p];[e setRenderPipelineState:self.pipeline];[e setVertexBuffer:self.vertices offset:0 atIndex:0];[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];[e endEncoding];[cb presentDrawable:d];[cb commit];}
+- (void)loadView { self.device=MTLCreateSystemDefaultDevice(); MTKView*v=[[MTKView alloc]initWithFrame:CGRectZero device:self.device];v.delegate=self;v.preferredFramesPerSecond=60;v.clearColor=MTLClearColorMake(.35,.55,.8,1);self.view=v; }
+- (void)viewDidLoad { [super viewDidLoad]; self.queue=[self.device newCommandQueue]; self.status=[[UILabel alloc]initWithFrame:CGRectMake(18,18,700,40)];self.status.textColor=UIColor.whiteColor;self.status.text=@"CS2 iOS — Import cs_office n0.glb";[self.view addSubview:self.status]; UIButton*b=[UIButton buttonWithType:UIButtonTypeSystem];b.frame=CGRectMake(18,65,210,44);[b setTitle:@"Import CS2 Map" forState:UIControlStateNormal];[b addTarget:self action:@selector(importMap) forControlEvents:UIControlEventTouchUpInside];[self.view addSubview:b]; [[NSNotificationCenter defaultCenter]addObserver:self selector:@selector(controller:) name:GCControllerDidConnectNotification object:nil];[GCController startWirelessControllerDiscoveryWithCompletionHandler:^{}]; }
+- (void)importMap { UIDocumentPickerViewController*p=[[UIDocumentPickerViewController alloc]initForOpeningContentTypes:@[[UTType typeWithFilenameExtension:@"glb"]]];p.delegate=self;[self presentViewController:p animated:YES completion:nil]; }
+- (void)documentPicker:(UIDocumentPickerViewController*)c didPickDocumentsAtURLs:(NSArray<NSURL*>*)u { NSURL*x=u.firstObject;if(!x)return;BOOL a=[x startAccessingSecurityScopedResource];self.loadStart=[NSDate date];MDLAsset*asset=[[MDLAsset alloc]initWithURL:x vertexDescriptor:nil bufferAllocator:[[MTKMeshBufferAllocator alloc]initWithDevice:self.device]];NSArray*meshes=nil;NSArray*mtk=[MTKMesh newMeshesFromAsset:asset device:self.device sourceMeshes:&meshes error:nil];self.mapMesh=mtk.firstObject;NSTimeInterval t=-self.loadStart.timeIntervalSinceNow;self.status.text=[NSString stringWithFormat:@"cs_office loaded %.2fs • meshes %lu",t,(unsigned long)mtk.count];NSLog(@"[CS2iOS][Step4] imported %@ meshes=%lu load=%.3fs",x.lastPathComponent,(unsigned long)mtk.count,t);if(a)[x stopAccessingSecurityScopedResource]; }
+- (void)controller:(NSNotification*)n { NSLog(@"[CS2iOS] controller=%lu",(unsigned long)GCController.controllers.count); }
+- (void)mtkView:(MTKView*)v drawableSizeWillChange:(CGSize)s{}
+- (void)drawInMTKView:(MTKView*)v { MTLRenderPassDescriptor*p=v.currentRenderPassDescriptor;id<CAMetalDrawable>d=v.currentDrawable;if(!p||!d)return;id<MTLCommandBuffer>cb=[self.queue commandBuffer];id<MTLRenderCommandEncoder>e=[cb renderCommandEncoderWithDescriptor:p];[e endEncoding];[cb presentDrawable:d];[cb commit]; }
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations{return UIInterfaceOrientationMaskLandscape;}
 @end
