@@ -24,3 +24,5 @@ targets:
       - sdk: MetalKit.framework
       - sdk: AVFAudio.framework
       - sdk: GameController.framework
+      - sdk: ModelIO.framework
+      - sdk: UniformTypeIdentifiers.framework
