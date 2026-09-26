@@ -53,5 +53,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete pc-transfer --yes --cleanup-tag 2>/dev/null || true
+          gh release delete pc-transfer --yes 2>/dev/null || true
+          git push origin :refs/tags/pc-transfer 2>/dev/null || true
           gh release create pc-transfer CS2iOS-LiveContainer-unsigned.ipa --target "${GITHUB_SHA}" --title "CS2iOS PC Transfer" --notes "Temporary asset-free ARM64 build for private local packaging."
