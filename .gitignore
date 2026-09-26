@@ -1,0 +1,8 @@
+# Build products
+build/
+DerivedData/
+*.xcuserstate
+
+# User-owned game assets are staged locally only.
+# Never commit extracted Counter-Strike 2 / Valve content.
+PrivateAssets/
