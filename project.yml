@@ -7,6 +7,9 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources: [Sources]
+    resources:
+      - path: PrivateAssets
+        optional: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cs2ios.runtime
