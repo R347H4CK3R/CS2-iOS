@@ -9,7 +9,7 @@
 
 @interface GameViewController () <MTKViewDelegate, UIDocumentPickerDelegate>
 @property id<MTLDevice> device; @property id<MTLCommandQueue> queue; @property GLBMetalRenderer *renderer;
-@property NSDate *loadStart; @property UILabel *status; @property NSURL *persistentMapURL; @property CGPoint lastTouch; @property CADisplayLink *gameTick;
+@property NSDate *loadStart; @property UILabel *status; @property NSURL *persistentMapURL; @property CGPoint lastTouch; @property CADisplayLink *gameTick; @property CGPoint moveStick;
 @end
 @implementation GameViewController
 - (void)loadView { self.device=MTLCreateSystemDefaultDevice(); MTKView*v=[[MTKView alloc]initWithFrame:CGRectZero device:self.device];v.delegate=self;v.preferredFramesPerSecond=60;v.depthStencilPixelFormat=MTLPixelFormatDepth32Float;v.clearColor=MTLClearColorMake(.20,.36,.58,1);self.view=v; }
@@ -20,8 +20,8 @@
 - (void)importMap { UIDocumentPickerViewController*p=[[UIDocumentPickerViewController alloc]initForOpeningContentTypes:@[[UTType typeWithFilenameExtension:@"glb"]]];p.delegate=self;[self presentViewController:p animated:YES completion:nil]; }
 - (void)documentPicker:(UIDocumentPickerViewController*)c didPickDocumentsAtURLs:(NSArray<NSURL*>*)u { NSURL*x=u.firstObject;if(!x)return;BOOL a=[x startAccessingSecurityScopedResource]; NSURL*dst=[self storedMapURL]; [[NSFileManager defaultManager] removeItemAtURL:dst error:nil]; NSError*err=nil; BOOL ok=[[NSFileManager defaultManager] copyItemAtURL:x toURL:dst error:&err]; if(a)[x stopAccessingSecurityScopedResource]; if(!ok){self.status.text=[NSString stringWithFormat:@"Import failed: %@",err.localizedDescription];NSLog(@"[CS2iOS][Step4] persist FAILED %@",err);return;} NSLog(@"[CS2iOS][Step4] persisted map %@",dst.path); [self loadMapURL:dst]; }
 - (void)controller:(NSNotification*)n { NSLog(@"[CS2iOS] controller=%lu",(unsigned long)GCController.controllers.count); }
-- (void)touchesBegan:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { self.lastTouch=[[t anyObject] locationInView:self.view]; }
-- (void)touchesMoved:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { CGPoint p=[[t anyObject] locationInView:self.view]; float dx=p.x-self.lastTouch.x,dy=p.y-self.lastTouch.y; self.lastTouch=p; self.renderer.cameraYaw+=dx*.004f; self.renderer.cameraPitch=fmaxf(-1.35f,fminf(1.35f,self.renderer.cameraPitch-dy*.004f)); }
+- (void)touchesBegan:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { UITouch*u=[t anyObject];CGPoint p=[u locationInView:self.view];self.lastTouch=p;if(p.x<self.view.bounds.size.width*.45)self.moveStick=p; }
+- (void)touchesMoved:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { CGPoint p=[[t anyObject] locationInView:self.view];float dx=p.x-self.lastTouch.x,dy=p.y-self.lastTouch.y;if(p.x>=self.view.bounds.size.width*.45){self.renderer.cameraYaw+=dx*.004f;self.renderer.cameraPitch=fmaxf(-1.35f,fminf(1.35f,self.renderer.cameraPitch-dy*.004f));}else{float sy=sinf(self.renderer.cameraYaw),cy=cosf(self.renderer.cameraYaw);vector_float3 q=self.renderer.cameraPosition;q.x+=(sy*(-dy)+cy*dx)*.012f;q.z+=(-cy*(-dy)+sy*dx)*.012f;self.renderer.cameraPosition=q;}self.lastTouch=p; }
 - (void)touchesEnded:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e {}
 - (void)updatePlayer:(CADisplayLink*)dl { GCController*c=GCController.current?:GCController.controllers.firstObject; GCExtendedGamepad*g=c.extendedGamepad;if(!g)return;float dt=fminf(dl.duration,1.0/30.0),x=g.leftThumbstick.xAxis.value,y=g.leftThumbstick.yAxis.value;self.renderer.cameraYaw+=g.rightThumbstick.xAxis.value*2.2f*dt;self.renderer.cameraPitch=fmaxf(-1.35f,fminf(1.35f,self.renderer.cameraPitch+g.rightThumbstick.yAxis.value*1.8f*dt));vector_float3 p=self.renderer.cameraPosition;float sy=sinf(self.renderer.cameraYaw),cy=cosf(self.renderer.cameraYaw),sp=4.5f*dt;p.x+=(sy*y+cy*x)*sp;p.z+=(-cy*y+sy*x)*sp;self.renderer.cameraPosition=p;}
 - (void)mtkView:(MTKView*)v drawableSizeWillChange:(CGSize)s{}
