@@ -8,7 +8,7 @@
 
 @interface GameViewController () <MTKViewDelegate, UIDocumentPickerDelegate>
 @property id<MTLDevice> device; @property id<MTLCommandQueue> queue; @property GLBMetalRenderer *renderer;
-@property NSDate *loadStart; @property UILabel *status; @property NSURL *persistentMapURL;
+@property NSDate *loadStart; @property UILabel *status; @property NSURL *persistentMapURL; @property CGPoint lastTouch;
 @end
 @implementation GameViewController
 - (void)loadView { self.device=MTLCreateSystemDefaultDevice(); MTKView*v=[[MTKView alloc]initWithFrame:CGRectZero device:self.device];v.delegate=self;v.preferredFramesPerSecond=60;v.depthStencilPixelFormat=MTLPixelFormatDepth32Float;v.clearColor=MTLClearColorMake(.20,.36,.58,1);self.view=v; }
@@ -19,6 +19,9 @@
 - (void)importMap { UIDocumentPickerViewController*p=[[UIDocumentPickerViewController alloc]initForOpeningContentTypes:@[[UTType typeWithFilenameExtension:@"glb"]]];p.delegate=self;[self presentViewController:p animated:YES completion:nil]; }
 - (void)documentPicker:(UIDocumentPickerViewController*)c didPickDocumentsAtURLs:(NSArray<NSURL*>*)u { NSURL*x=u.firstObject;if(!x)return;BOOL a=[x startAccessingSecurityScopedResource]; NSURL*dst=[self storedMapURL]; [[NSFileManager defaultManager] removeItemAtURL:dst error:nil]; NSError*err=nil; BOOL ok=[[NSFileManager defaultManager] copyItemAtURL:x toURL:dst error:&err]; if(a)[x stopAccessingSecurityScopedResource]; if(!ok){self.status.text=[NSString stringWithFormat:@"Import failed: %@",err.localizedDescription];NSLog(@"[CS2iOS][Step4] persist FAILED %@",err);return;} NSLog(@"[CS2iOS][Step4] persisted map %@",dst.path); [self loadMapURL:dst]; }
 - (void)controller:(NSNotification*)n { NSLog(@"[CS2iOS] controller=%lu",(unsigned long)GCController.controllers.count); }
+- (void)touchesBegan:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { self.lastTouch=[[t anyObject] locationInView:self.view]; }
+- (void)touchesMoved:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e { CGPoint p=[[t anyObject] locationInView:self.view]; float dx=p.x-self.lastTouch.x,dy=p.y-self.lastTouch.y; self.lastTouch=p; self.renderer.cameraYaw+=dx*.004f; self.renderer.cameraPitch=fmaxf(-1.35f,fminf(1.35f,self.renderer.cameraPitch-dy*.004f)); }
+- (void)touchesEnded:(NSSet<UITouch*>*)t withEvent:(UIEvent*)e {}
 - (void)mtkView:(MTKView*)v drawableSizeWillChange:(CGSize)s{}
 - (void)drawInMTKView:(MTKView*)v { MTLRenderPassDescriptor*p=v.currentRenderPassDescriptor;id<CAMetalDrawable>d=v.currentDrawable;if(!p||!d)return;id<MTLCommandBuffer>cb=[self.queue commandBuffer];id<MTLRenderCommandEncoder>e=[cb renderCommandEncoderWithDescriptor:p];[self.renderer draw:e drawableSize:v.drawableSize];[e endEncoding];[cb presentDrawable:d];[cb commit]; }
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations{return UIInterfaceOrientationMaskLandscape;}
