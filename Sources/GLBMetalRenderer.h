@@ -8,4 +8,5 @@
 -(instancetype)initWithDevice:(id<MTLDevice>)device colorFormat:(MTLPixelFormat)color depthFormat:(MTLPixelFormat)depth;
 -(BOOL)loadURL:(NSURL*)url error:(NSError**)error;
 -(void)draw:(id<MTLRenderCommandEncoder>)encoder drawableSize:(CGSize)size;
+-(vector_float3)constrainPlayerPosition:(vector_float3)candidate;
 @end
