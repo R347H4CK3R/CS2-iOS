@@ -13,7 +13,7 @@ _cameraPosition=(vector_float3){0,1.65f,0};_cameraYaw=0;_cameraPitch=0;}return s
 
 -(NSUInteger)collisionTriangleCount{return _collisionTriangles.length/sizeof(CTri);}
 -(BOOL)loadCollisionURL:(NSURL*)url error:(NSError**)error{
- NSData*d=[NSData dataWithContentsOfURL:url options:NSDataReadingMappedIfSafe error:error];if(!d||d.length<28)return NO;const uint8_t*b=d.bytes;if(*(uint32_t*)b!=0x46546C67)return NO;
+ NSData*d=[NSData dataWithContentsOfURL:url options:NSDataReadingMappedIfSafe error:error];if(!d||d.length<28)return NO;const uint8_t*b=(const uint8_t*)d.bytes;if(*(uint32_t*)b!=0x46546C67)return NO;
  uint32_t jl=*(uint32_t*)(b+12);NSUInteger o=(20ull+jl+3)&~3ull;if(o+8>d.length)return NO;NSDictionary*j=[NSJSONSerialization JSONObjectWithData:[NSData dataWithBytes:b+20 length:jl] options:0 error:error];if(!j)return NO;
  uint32_t bl=*(uint32_t*)(b+o);if(*(uint32_t*)(b+o+4)!=0x004E4942||o+8ull+bl>d.length)return NO;const uint8_t*bin=b+o+8;NSArray*A=j[@"accessors"],*B=j[@"bufferViews"];NSMutableData*out=[NSMutableData data];
  for(NSDictionary*m in j[@"meshes"])for(NSDictionary*r in m[@"primitives"]){NSNumber*pn=r[@"attributes"][@"POSITION"],*in=r[@"indices"];if(!pn||!in)continue;NSDictionary*pa=A[pn.unsignedIntegerValue],*ia=A[in.unsignedIntegerValue],*pv=B[[pa[@"bufferView"] unsignedIntegerValue]],*iv=B[[ia[@"bufferView"] unsignedIntegerValue]];
