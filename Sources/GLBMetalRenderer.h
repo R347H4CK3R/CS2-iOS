@@ -11,4 +11,5 @@
 -(BOOL)loadCollisionURL:(NSURL*)url error:(NSError**)error;
 -(void)draw:(id<MTLRenderCommandEncoder>)encoder drawableSize:(CGSize)size;
 -(vector_float3)constrainPlayerPosition:(vector_float3)candidate;
+-(BOOL)floorHeightAtX:(float)x z:(float)z nearY:(float)nearY result:(float*)result;
 @end
